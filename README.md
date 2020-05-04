@@ -1,3 +1,12 @@
+# google-kms-node-jws
+
+## A close-as-possible replacement for the node-jwa library to let you use Google Cloud KMS
+
+No changes yet - first up is signing
+
+
+# Forked from:
+
 # node-jwa [![Build Status](https://travis-ci.org/brianloveswords/node-jwa.svg?branch=master)](https://travis-ci.org/brianloveswords/node-jwa)
 
 A
