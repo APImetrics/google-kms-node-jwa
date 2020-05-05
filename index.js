@@ -148,12 +148,12 @@ function normalizeInput(thing) {
 // }
 
 function createKeySigner(bits) {
- return function sign(thing, {projectId, locationId, keyRingId, keyId, versionId}) {
+ return async function sign(thing, {projectId, locationId, keyRingId, keyId, versionId}) {
     // checkIsPrivateKey(privateKey);  TODO: validate input
     thing = normalizeInput(thing);
 
     const digest = crypto.createHash('sha' + bits);
-    digest.update(message);
+    digest.update(thing);
 
     // Build the version name
     const versionName = kmsClient.cryptoKeyVersionPath(
@@ -165,7 +165,7 @@ function createKeySigner(bits) {
     );
 
     // Sign the message with Cloud KMS
-    const [signResponse] = await client.asymmetricSign({
+    const [signResponse] = await kmsClient.asymmetricSign({
       name: versionName,
       digest: {
         sha256: digest.digest(),
@@ -177,7 +177,7 @@ function createKeySigner(bits) {
 }
 
 function createKeyVerifier(bits) {
-  return function verify(thing, signature, {projectId, locationId, keyRingId, keyId, versionId}) {
+  return async function verify(thing, signature, {projectId, locationId, keyRingId, keyId, versionId}) {
 
     // Build the version name
     const versionName = kmsClient.cryptoKeyVersionPath(
@@ -188,7 +188,7 @@ function createKeyVerifier(bits) {
       versionId
     );
 
-    const [publicKey] = await client.getPublicKey({
+    const [publicKey] = await kmsClient.getPublicKey({
       name: versionName,
     });
 
@@ -215,7 +215,7 @@ function createKeyVerifier(bits) {
 // }
 
 function createPSSKeyVerifier(bits) {
-  return function verify(thing, signature, {projectId, locationId, keyRingId, keyId, versionId}) {
+  return async function verify(thing, signature, {projectId, locationId, keyRingId, keyId, versionId}) {
     // Build the version name
     const versionName = kmsClient.cryptoKeyVersionPath(
       projectId,
@@ -225,7 +225,7 @@ function createPSSKeyVerifier(bits) {
       versionId
     );
 
-    const [publicKey] = await client.getPublicKey({
+    const [publicKey] = await kmsClient.getPublicKey({
       name: versionName,
     });
 
@@ -251,14 +251,14 @@ function createECDSASigner(bits) {
   };
 }
 
-// function createECDSAVerifer(bits) {
-//   var inner = createKeyVerifier(bits);
-//   return function verify(thing, signature, publicKey) {
-//     signature = formatEcdsa.joseToDer(signature, 'ES' + bits).toString('base64');
-//     var result = inner(thing, signature, publicKey);
-//     return result;
-//   };
-// }
+function createECDSAVerifer(bits) {
+  var inner = createKeyVerifier(bits);
+  return function verify(thing, signature, publicKey) {
+    signature = formatEcdsa.joseToDer(signature, 'ES' + bits).toString('base64');
+    var result = inner(thing, signature, publicKey);
+    return result;
+  };
+}
 
 function createNoneSigner() {
   return function sign() {
