@@ -2,7 +2,10 @@
 
 ## A close-as-possible replacement for the node-jwa library to let you use Google Cloud KMS
 
-No changes yet - first up is signing
+Removed HMAC
+
+Overrode privateKey parameter to sign / verify functions - no expecting an object of format:
+`{projectId, locationId, keyRingId, keyId, versionId}`
 
 
 # Forked from:
