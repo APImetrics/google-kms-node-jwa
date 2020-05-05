@@ -3,8 +3,13 @@ var Buffer = require('safe-buffer').Buffer;
 var crypto = require('crypto');
 var formatEcdsa = require('ecdsa-sig-formatter');
 var util = require('util');
+// Imports the Cloud KMS library
+const {KeyManagementServiceClient} = require('@google-cloud/kms');
 
-var MSG_INVALID_ALGORITHM = '"%s" is not a valid algorithm.\n  Supported algorithms are:\n  "HS256", "HS384", "HS512", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512", "ES256", "ES384", "ES512" and "none".'
+// Instantiates a client
+const kmsClient = new KeyManagementServiceClient();
+
+var MSG_INVALID_ALGORITHM = '"%s" is not a valid algorithm.\n  Supported algorithms are:\n  "RS256", "RS384", "PS256", "PS384",  "ES256", "ES384", and "none".'
 var MSG_INVALID_SECRET = 'secret must be a string or buffer';
 var MSG_INVALID_VERIFIER_KEY = 'key must be a string or a buffer';
 var MSG_INVALID_SIGNER_KEY = 'key must be a string, a buffer or an object';
@@ -125,37 +130,68 @@ function normalizeInput(thing) {
   return thing;
 }
 
-function createHmacSigner(bits) {
-  return function sign(thing, secret) {
-    checkIsSecretKey(secret);
-    thing = normalizeInput(thing);
-    var hmac = crypto.createHmac('sha' + bits, secret);
-    var sig = (hmac.update(thing), hmac.digest('base64'))
-    return fromBase64(sig);
-  }
-}
+// function createHmacSigner(bits) {
+//   return function sign(thing, secret) {
+//     checkIsSecretKey(secret);
+//     thing = normalizeInput(thing);
+//     var hmac = crypto.createHmac('sha' + bits, secret);
+//     var sig = (hmac.update(thing), hmac.digest('base64'))
+//     return fromBase64(sig);
+//   }
+// }
 
-function createHmacVerifier(bits) {
-  return function verify(thing, signature, secret) {
-    var computedSig = createHmacSigner(bits)(thing, secret);
-    return bufferEqual(Buffer.from(signature), Buffer.from(computedSig));
-  }
-}
+// function createHmacVerifier(bits) {
+//   return function verify(thing, signature, secret) {
+//     var computedSig = createHmacSigner(bits)(thing, secret);
+//     return bufferEqual(Buffer.from(signature), Buffer.from(computedSig));
+//   }
+// }
 
 function createKeySigner(bits) {
- return function sign(thing, privateKey) {
-    checkIsPrivateKey(privateKey);
+ return function sign(thing, {projectId, locationId, keyRingId, keyId, versionId}) {
+    // checkIsPrivateKey(privateKey);  TODO: validate input
     thing = normalizeInput(thing);
-    // Even though we are specifying "RSA" here, this works with ECDSA
-    // keys as well.
-    var signer = crypto.createSign('RSA-SHA' + bits);
-    var sig = (signer.update(thing), signer.sign(privateKey, 'base64'));
-    return fromBase64(sig);
+
+    const digest = crypto.createHash('sha' + bits);
+    digest.update(message);
+
+    // Build the version name
+    const versionName = kmsClient.cryptoKeyVersionPath(
+      projectId,
+      locationId,
+      keyRingId,
+      keyId,
+      versionId
+    );
+
+    // Sign the message with Cloud KMS
+    const [signResponse] = await client.asymmetricSign({
+      name: versionName,
+      digest: {
+        sha256: digest.digest(),
+      },
+    });
+    const encoded = signResponse.signature.toString('base64');
+    return fromBase64(encoded);
   }
 }
 
 function createKeyVerifier(bits) {
-  return function verify(thing, signature, publicKey) {
+  return function verify(thing, signature, {projectId, locationId, keyRingId, keyId, versionId}) {
+
+    // Build the version name
+    const versionName = kmsClient.cryptoKeyVersionPath(
+      projectId,
+      locationId,
+      keyRingId,
+      keyId,
+      versionId
+    );
+
+    const [publicKey] = await client.getPublicKey({
+      name: versionName,
+    });
+
     checkIsPublicKey(publicKey);
     thing = normalizeInput(thing);
     signature = toBase64(signature);
@@ -165,22 +201,34 @@ function createKeyVerifier(bits) {
   }
 }
 
-function createPSSKeySigner(bits) {
-  return function sign(thing, privateKey) {
-    checkIsPrivateKey(privateKey);
-    thing = normalizeInput(thing);
-    var signer = crypto.createSign('RSA-SHA' + bits);
-    var sig = (signer.update(thing), signer.sign({
-      key: privateKey,
-      padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-      saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST
-    }, 'base64'));
-    return fromBase64(sig);
-  }
-}
+// function createPSSKeySigner(bits) {
+//   return function sign(thing, privateKey) {
+//     checkIsPrivateKey(privateKey);
+//     thing = normalizeInput(thing);
+//     var signer = crypto.createSign('RSA-SHA' + bits);
+//     var sig = (signer.update(thing), signer.sign({
+//       key: privateKey,
+//       padding: crypto.constants.RSA_PKCS1_PSS_PADDING,      saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST
+//     }, 'base64'));
+//     return fromBase64(sig);
+//   }
+// }
 
 function createPSSKeyVerifier(bits) {
-  return function verify(thing, signature, publicKey) {
+  return function verify(thing, signature, {projectId, locationId, keyRingId, keyId, versionId}) {
+    // Build the version name
+    const versionName = kmsClient.cryptoKeyVersionPath(
+      projectId,
+      locationId,
+      keyRingId,
+      keyId,
+      versionId
+    );
+
+    const [publicKey] = await client.getPublicKey({
+      name: versionName,
+    });
+
     checkIsPublicKey(publicKey);
     thing = normalizeInput(thing);
     signature = toBase64(signature);
@@ -203,14 +251,14 @@ function createECDSASigner(bits) {
   };
 }
 
-function createECDSAVerifer(bits) {
-  var inner = createKeyVerifier(bits);
-  return function verify(thing, signature, publicKey) {
-    signature = formatEcdsa.joseToDer(signature, 'ES' + bits).toString('base64');
-    var result = inner(thing, signature, publicKey);
-    return result;
-  };
-}
+// function createECDSAVerifer(bits) {
+//   var inner = createKeyVerifier(bits);
+//   return function verify(thing, signature, publicKey) {
+//     signature = formatEcdsa.joseToDer(signature, 'ES' + bits).toString('base64');
+//     var result = inner(thing, signature, publicKey);
+//     return result;
+//   };
+// }
 
 function createNoneSigner() {
   return function sign() {
@@ -226,20 +274,20 @@ function createNoneVerifier() {
 
 module.exports = function jwa(algorithm) {
   var signerFactories = {
-    hs: createHmacSigner,
+    // hs: createHmacSigner,
     rs: createKeySigner,
-    ps: createPSSKeySigner,
+    ps: createKeySigner,
     es: createECDSASigner,
     none: createNoneSigner,
   }
   var verifierFactories = {
-    hs: createHmacVerifier,
+    // hs: createHmacVerifier,
     rs: createKeyVerifier,
     ps: createPSSKeyVerifier,
     es: createECDSAVerifer,
     none: createNoneVerifier,
   }
-  var match = algorithm.match(/^(RS|PS|ES|HS)(256|384|512)$|^(none)$/);
+  var match = algorithm.match(/^(RS|PS|ES)(256|384)$|^(none)$/);
   if (!match)
     throw typeError(MSG_INVALID_ALGORITHM, algorithm);
   var algo = (match[1] || match[3]).toLowerCase();
