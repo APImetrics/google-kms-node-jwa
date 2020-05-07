@@ -222,7 +222,6 @@ function createKeyVerifier(bits) {
     signature = toBase64(signature);
     var verifier = crypto.createVerify('RSA-SHA' + bits);
     verifier.update(thing);
-    console.log('verifier.verify', publicKey, signature, 'base64');
     return verifier.verify(publicKey, signature, 'base64');
   }
 }
