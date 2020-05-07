@@ -126,7 +126,7 @@ function normalizeInput(thing) {
 }
 
 function createHmacSigner(bits) {
-  return function sign(thing, secret) {
+  return async function sign(thing, secret) {
     checkIsSecretKey(secret);
     thing = normalizeInput(thing);
     var hmac = crypto.createHmac('sha' + bits, secret);
@@ -136,14 +136,14 @@ function createHmacSigner(bits) {
 }
 
 function createHmacVerifier(bits) {
-  return function verify(thing, signature, secret) {
+  return async function verify(thing, signature, secret) {
     var computedSig = createHmacSigner(bits)(thing, secret);
     return bufferEqual(Buffer.from(signature), Buffer.from(computedSig));
   }
 }
 
 function createKeySigner(bits) {
- return function sign(thing, privateKey) {
+ return async function sign(thing, privateKey) {
     checkIsPrivateKey(privateKey);
     thing = normalizeInput(thing);
     // Even though we are specifying "RSA" here, this works with ECDSA
@@ -155,7 +155,7 @@ function createKeySigner(bits) {
 }
 
 function createKeyVerifier(bits) {
-  return function verify(thing, signature, publicKey) {
+  return async function verify(thing, signature, publicKey) {
     checkIsPublicKey(publicKey);
     thing = normalizeInput(thing);
     signature = toBase64(signature);
@@ -166,7 +166,7 @@ function createKeyVerifier(bits) {
 }
 
 function createPSSKeySigner(bits) {
-  return function sign(thing, privateKey) {
+  return async function sign(thing, privateKey) {
     checkIsPrivateKey(privateKey);
     thing = normalizeInput(thing);
     var signer = crypto.createSign('RSA-SHA' + bits);
@@ -180,7 +180,7 @@ function createPSSKeySigner(bits) {
 }
 
 function createPSSKeyVerifier(bits) {
-  return function verify(thing, signature, publicKey) {
+  return async function verify(thing, signature, publicKey) {
     checkIsPublicKey(publicKey);
     thing = normalizeInput(thing);
     signature = toBase64(signature);
@@ -196,7 +196,7 @@ function createPSSKeyVerifier(bits) {
 
 function createECDSASigner(bits) {
   var inner = createKeySigner(bits);
-  return function sign() {
+  return async function sign() {
     var signature = inner.apply(null, arguments);
     signature = formatEcdsa.derToJose(signature, 'ES' + bits);
     return signature;
@@ -205,7 +205,7 @@ function createECDSASigner(bits) {
 
 function createECDSAVerifer(bits) {
   var inner = createKeyVerifier(bits);
-  return function verify(thing, signature, publicKey) {
+  return async function verify(thing, signature, publicKey) {
     signature = formatEcdsa.joseToDer(signature, 'ES' + bits).toString('base64');
     var result = inner(thing, signature, publicKey);
     return result;
@@ -213,13 +213,13 @@ function createECDSAVerifer(bits) {
 }
 
 function createNoneSigner() {
-  return function sign() {
+  return async function sign() {
     return '';
   }
 }
 
 function createNoneVerifier() {
-  return function verify(thing, signature) {
+  return async function verify(thing, signature) {
     return signature === '';
   }
 }
