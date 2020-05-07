@@ -19,7 +19,7 @@ gcloud kms keyrings create "google-kms-node-jwa" --location us-central1
 gcloud kms keys create "rsa-private" --location us-central1 --keyring "google-kms-node-jwa" --purpose asymmetric-signing --default-algorithm rsa-sign-pss-2048-sha256 --skip-initial-version-creation
 gcloud kms import-jobs create "rsa-private-job" --location us-central1 --keyring "google-kms-node-jwa" --import-method rsa-oaep-3072-sha1-aes-256 --protection-level software
 gcloud kms import-jobs describe "rsa-private-job" --location "us-central1" --keyring "google-kms-node-jwa" --format="value(state)"
-gcloud kms keys versions import --import-job "rsa-private-job" --location "us-central1" --keyring "google-kms-node-jwa" --key "rsa-private" --algorithm rsa-sign-pss-3072-sha256 --target-key-file test/rsa-private.der 
+gcloud kms keys versions import --import-job "rsa-private-job" --location "us-central1" --keyring "google-kms-node-jwa" --key "rsa-private" --algorithm rsa-sign-pss-2048-sha256 --target-key-file test/rsa-private.der 
 gcloud kms keys versions list --keyring "google-kms-node-jwa" --location "us-central1" --key "rsa-private"  
 ```
 

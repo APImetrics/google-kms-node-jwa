@@ -6,8 +6,7 @@ var util = require('util');
 // Imports the Cloud KMS library
 const {KeyManagementServiceClient} = require('@google-cloud/kms');
 
-// Instantiates a client
-const kmsClient = new KeyManagementServiceClient();
+const KMS_CLIENT = new KeyManagementServiceClient();
 
 var MSG_INVALID_ALGORITHM = '"%s" is not a valid algorithm.\n  Supported algorithms are:\n  "RS256", "RS384", "PS256", "PS384",  "ES256", "ES384", and "none".'
 var MSG_INVALID_SECRET = 'secret must be a string or buffer';
@@ -18,6 +17,43 @@ var supportsKeyObjects = typeof crypto.createPublicKey === 'function';
 if (supportsKeyObjects) {
   MSG_INVALID_VERIFIER_KEY += ' or a KeyObject';
   MSG_INVALID_SECRET += 'or a KeyObject';
+}
+
+async function convertToPublicKey (key)
+{
+  if (Buffer.isBuffer(key)) {
+    return key;
+  }
+
+  if (typeof key === 'string') {
+    return key;
+  }
+  
+  if (key.projectId) {
+    const {
+      projectId,
+      locationId,
+      keyRingId,
+      keyId,
+      versionId
+    } = key;
+
+    // Build the version name
+    const versionName = KMS_CLIENT.cryptoKeyVersionPath(
+      projectId,
+      locationId,
+      keyRingId,
+      keyId,
+      versionId
+    );
+
+    const [publicKey] = await KMS_CLIENT.getPublicKey({
+      name: versionName,
+    });
+
+    return publicKey.pem;
+  }
+  return key;
 }
 
 function checkIsPublicKey(key) {
@@ -51,18 +87,18 @@ function checkIsPublicKey(key) {
 };
 
 function checkIsPrivateKey(key) {
-  if (Buffer.isBuffer(key)) {
-    return;
-  }
-
-  if (typeof key === 'string') {
-    return;
-  }
-
   if (typeof key === 'object') {
-    return;
+    const {
+      projectId,
+      locationId,
+      keyRingId,
+      keyId,
+      versionId
+    } = key;
+    if (projectId && locationId && keyRingId && keyId && versionId) {
+      return;
+    }
   }
-
   throw typeError(MSG_INVALID_SIGNER_KEY);
 };
 
@@ -149,14 +185,16 @@ function normalizeInput(thing) {
 
 function createKeySigner(bits) {
  return async function sign(thing, {projectId, locationId, keyRingId, keyId, versionId}) {
-    // checkIsPrivateKey(privateKey);  TODO: validate input
+    checkIsPrivateKey({projectId, locationId, keyRingId, keyId, versionId});
     thing = normalizeInput(thing);
 
-    const digest = crypto.createHash('sha' + bits);
+    const hashScheme = 'sha' + bits;
+    const digest = crypto.createHash(hashScheme);
     digest.update(thing);
+    const digestBase64 = digest.digest();
 
     // Build the version name
-    const versionName = kmsClient.cryptoKeyVersionPath(
+    const versionName = KMS_CLIENT.cryptoKeyVersionPath(
       projectId,
       locationId,
       keyRingId,
@@ -165,10 +203,10 @@ function createKeySigner(bits) {
     );
 
     // Sign the message with Cloud KMS
-    const [signResponse] = await kmsClient.asymmetricSign({
+    const [signResponse] = await KMS_CLIENT.asymmetricSign({
       name: versionName,
       digest: {
-        sha256: digest.digest(),
+        [hashScheme]: digestBase64,
       },
     });
     const encoded = signResponse.signature.toString('base64');
@@ -177,26 +215,14 @@ function createKeySigner(bits) {
 }
 
 function createKeyVerifier(bits) {
-  return async function verify(thing, signature, {projectId, locationId, keyRingId, keyId, versionId}) {
-
-    // Build the version name
-    const versionName = kmsClient.cryptoKeyVersionPath(
-      projectId,
-      locationId,
-      keyRingId,
-      keyId,
-      versionId
-    );
-
-    const [publicKey] = await kmsClient.getPublicKey({
-      name: versionName,
-    });
-
+  return async function verify(thing, signature, publicKey) {
+    publicKey = await convertToPublicKey(publicKey);
     checkIsPublicKey(publicKey);
     thing = normalizeInput(thing);
     signature = toBase64(signature);
     var verifier = crypto.createVerify('RSA-SHA' + bits);
     verifier.update(thing);
+    console.log('verifier.verify', publicKey, signature, 'base64');
     return verifier.verify(publicKey, signature, 'base64');
   }
 }
@@ -215,20 +241,8 @@ function createKeyVerifier(bits) {
 // }
 
 function createPSSKeyVerifier(bits) {
-  return async function verify(thing, signature, {projectId, locationId, keyRingId, keyId, versionId}) {
-    // Build the version name
-    const versionName = kmsClient.cryptoKeyVersionPath(
-      projectId,
-      locationId,
-      keyRingId,
-      keyId,
-      versionId
-    );
-
-    const [publicKey] = await kmsClient.getPublicKey({
-      name: versionName,
-    });
-
+  return async function verify(thing, signature, publicKey) {
+    publicKey = await convertToPublicKey(publicKey);
     checkIsPublicKey(publicKey);
     thing = normalizeInput(thing);
     signature = toBase64(signature);

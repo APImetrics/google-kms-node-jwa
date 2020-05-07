@@ -13,13 +13,13 @@ const nodeVersion = semver.clean(process.version);
 const SUPPORTS_KEY_OBJECTS = typeof crypto.createPublicKey === 'function';
 
 // these key files will be generated as part of `make test`
-const rsaPrivateKey = fs.readFileSync(__dirname + '/rsa-private.pem').toString();
+const rsaPrivateKeyPem = fs.readFileSync(__dirname + '/rsa-private.pem').toString();
 const RSA_PRIVATE_KEY = { 
   projectId: 'apimetrics-qc', 
   locationId: 'us-central1', 
   keyRingId: 'google-kms-node-jwa', 
   keyId: 'rsa-private', 
-  versionId: 3 
+  versionId: '4'
 };
 const rsaPublicKey = fs.readFileSync(__dirname + '/rsa-public.pem').toString();
 // const rsaPrivateKeyWithPassphrase = fs.readFileSync(__dirname + '/rsa-passphrase-private.pem').toString();
@@ -83,22 +83,25 @@ const BIT_DEPTHS = ['256'];
 //   });
 // }
 
-test('RSA signing, verifying', async function (t) {
-  const input = 'h. jon benjamin';
-  // BIT_DEPTHS.forEach(async function (bits) {
-  const bits = '256';
-    const algo = jwa('RS'+bits);
-    try {
-      const sig = await algo.sign(input, RSA_PRIVATE_KEY);
-      t.ok(await algo.verify(input, sig, RSA_PRIVATE_KEY), 'should verify');  // rsaPublicKey
-    }
-    catch(ex) {
-      t.notOk(ex, ex);
-    }
-    // t.notOk(algo.verify(input, sig, rsaWrongPublicKey), 'shoud not verify');
-  // });
-  t.end();
-});
+// test('RSA signing, verifying', async function (t) {
+//   const input = 'h. jon benjamin';
+//   const bits = '256';
+//   //BIT_DEPTHS.forEach(async function (bits) {
+//   const algo = jwa('PS' + bits);
+//   const sig = await algo.sign(input, RSA_PRIVATE_KEY)
+//     .catch(ex => {
+//       console.error(ex);
+//       return null;
+//     });
+//   t.ok(sig, 'signature creation failed');
+//   if (sig) {
+//     t.ok(await algo.verify(input, sig, RSA_PRIVATE_KEY), 'should verify public key from private');
+//     t.ok(await algo.verify(input, sig, rsaPublicKey), 'should verify public key');
+//     t.notOk(await algo.verify(input, sig, rsaWrongPublicKey), 'shoud not verify');
+//   }
+//   //});
+//   t.end();
+// });
 
 // // run only on nodejs version >= 0.11.8
 // if (semver.gte(nodeVersion, '0.11.8')) {
@@ -114,46 +117,47 @@ test('RSA signing, verifying', async function (t) {
 //   });
 // }
 
-if (false && SUPPORTS_KEY_OBJECTS) {
-  BIT_DEPTHS.forEach(async function (bits) {
-    test('RS'+bits+': signing, verifying (KeyObject)', async function (t) {
+// if (SUPPORTS_KEY_OBJECTS) {
+//   BIT_DEPTHS.forEach(function (bits) {
+//     test('RS'+bits+': signing, verifying (KeyObject)', function (t) {
+//       const input = 'h. jon benjamin';
+//       const algo = jwa('RS'+bits);
+//       //crypto.createPrivateKey(rsaPrivateKey)
+//       const sig = algo.sign(input, RSA_PRIVATE_KEY);
+//       t.ok(algo.verify(input, sig, RSA_PRIVATE_KEY), 'should verify'); // crypto.createPublicKey(rsaPublicKey)
+//       //t.notOk(algo.verify(input, sig, crypto.createPublicKey(rsaWrongPublicKey)), 'shoud not verify');
+//       t.end();
+//     });
+//   });
+// }
+
+
+if (semver.satisfies(nodeVersion, '^6.12.0 || >=8.0.0')) {
+  BIT_DEPTHS.forEach(function (bits) {
+    test('RSA-PSS signing, verifying', async function (t) {
       const input = 'h. jon benjamin';
-      const algo = jwa('RS'+bits);
-      //crypto.createPrivateKey(rsaPrivateKey)
-      const sig = await algo.sign(input, RSA_PRIVATE_KEY);
-      t.ok(await algo.verify(input, sig, RSA_PRIVATE_KEY), 'should verify'); // crypto.createPublicKey(rsaPublicKey)
-      //t.notOk(await algo.verify(input, sig, crypto.createPublicKey(rsaWrongPublicKey)), 'shoud not verify');
+        const algo = jwa('PS'+bits);
+        const sig = await algo.sign(input, RSA_PRIVATE_KEY);
+        t.ok(await algo.verify(input, sig, RSA_PRIVATE_KEY), 'should verify');
+        t.ok(await algo.verify(input, sig, rsaPublicKey), 'should verify 2');
+        t.notOk(await algo.verify(input, sig, rsaWrongPublicKey), 'shoud not verify');
       t.end();
     });
+
+    if (SUPPORTS_KEY_OBJECTS) {
+      test('PS'+bits+': signing, verifying (KeyObject)', async function (t) {
+        const input = 'h. jon benjamin';
+        const algo = jwa('PS'+bits);
+        // const sig = await algo.sign(input, crypto.createPrivateKey(rsaPrivateKeyPem));
+        const sig = await algo.sign(input, RSA_PRIVATE_KEY);
+        t.ok(await algo.verify(input, sig, crypto.createPublicKey(rsaPublicKey)), 'should verify');
+        t.ok(await algo.verify(input, sig, crypto.createPublicKey(rsaPublicKey)), 'should verify');
+        t.notOk(await algo.verify(input, sig, crypto.createPublicKey(rsaWrongPublicKey)), 'should not verify');
+        t.end();
+      });
+    }
   });
 }
-
-
-// if (semver.satisfies(nodeVersion, '^6.12.0 || >=8.0.0')) {
-//   test('RSA-PSS signing, verifying', function (t) {
-//     const input = 'h. jon benjamin';
-//     BIT_DEPTHS.forEach(function (bits) {
-//       const algo = jwa('PS'+bits);
-//       const sig = algo.sign(input, rsaPrivateKey);
-//       t.ok(algo.verify(input, sig, rsaPublicKey), 'should verify');
-//       t.notOk(algo.verify(input, sig, rsaWrongPublicKey), 'shoud not verify');
-//     });
-//     t.end();
-//   });
-
-//   if (SUPPORTS_KEY_OBJECTS) {
-//     BIT_DEPTHS.forEach(function (bits) {
-//       test('PS'+bits+': signing, verifying (KeyObject)', function (t) {
-//         const input = 'h. jon benjamin';
-//         const algo = jwa('PS'+bits);
-//         const sig = algo.sign(input, crypto.createPrivateKey(rsaPrivateKey));
-//         t.ok(algo.verify(input, sig, crypto.createPublicKey(rsaPublicKey)), 'should verify');
-//         t.notOk(algo.verify(input, sig, crypto.createPublicKey(rsaWrongPublicKey)), 'should not verify');
-//         t.end();
-//       });
-//     });
-//   }
-// }
 
 
 // BIT_DEPTHS.forEach(function (bits) {
