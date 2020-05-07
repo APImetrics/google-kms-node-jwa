@@ -36,16 +36,17 @@ const ecdsaWrongPublicKey = {
 
 const BIT_DEPTHS = ['256', '384', '512'];
 
-test('HMAC signing, verifying', function (t) {
+test('HMAC signing, verifying', async function (t) {
   const input = 'eugene mirman';
   const secret = 'shhhhhhhhhh';
-  BIT_DEPTHS.forEach(function (bits) {
+  const promises = BIT_DEPTHS.map(async function (bits) {
     const algo = jwa('HS'+bits);
-    const sig = algo.sign(input, secret);
-    t.ok(algo.verify(input, sig, secret), 'should verify');
-    t.notOk(algo.verify(input, 'other sig', secret), 'should verify');
-    t.notOk(algo.verify(input, sig, 'incrorect'), 'shoud not verify');
+    const sig = await algo.sign(input, secret);
+    t.ok(await algo.verify(input, sig, secret), 'should verify');
+    t.notOk(await algo.verify(input, 'other sig', secret), 'should verify');
+    t.notOk(await algo.verify(input, sig, 'incrorect'), 'shoud not verify');
   });
+  await Promise.all(promises);
   t.end();
 });
 
@@ -56,19 +57,19 @@ if (SUPPORTS_KEY_OBJECTS) {
     const secretBuf = Buffer.from(secret, 'utf8');
     const secretObj = crypto.createSecretKey(secretBuf);
 
-    test('HS' + bits + 'signing, verifying (w/ KeyObject)', function (t) {
+    test('HS' + bits + 'signing, verifying (w/ KeyObject)', async function (t) {
       const algo = jwa('HS' + bits);
 
       const sigs = [
-        algo.sign(input, secret),
-        algo.sign(input, secretBuf),
-        algo.sign(input, secretObj)
+        await algo.sign(input, secret),
+        await algo.sign(input, secretBuf),
+        await algo.sign(input, secretObj)
       ];
 
       for (var i = 0; i < sigs.length; ++i) {
-        t.ok(algo.verify(input, sigs[i], secret));
-        t.ok(algo.verify(input, sigs[i], secretBuf));
-        t.ok(algo.verify(input, sigs[i], secretObj));
+        t.ok(await algo.verify(input, sigs[i], secret));
+        t.ok(await algo.verify(input, sigs[i], secretBuf));
+        t.ok(await algo.verify(input, sigs[i], secretObj));
       }
 
       t.end();
@@ -76,39 +77,41 @@ if (SUPPORTS_KEY_OBJECTS) {
   });
 }
 
-test('RSA signing, verifying', function (t) {
+test('RSA signing, verifying', async function (t) {
   const input = 'h. jon benjamin';
-  BIT_DEPTHS.forEach(function (bits) {
+  const promises = BIT_DEPTHS.map(async function (bits) {
     const algo = jwa('RS'+bits);
-    const sig = algo.sign(input, rsaPrivateKey);
-    t.ok(algo.verify(input, sig, rsaPublicKey), 'should verify');
-    t.notOk(algo.verify(input, sig, rsaWrongPublicKey), 'shoud not verify');
+    const sig = await algo.sign(input, rsaPrivateKey);
+    t.ok(await algo.verify(input, sig, rsaPublicKey), 'should verify');
+    t.notOk(await algo.verify(input, sig, rsaWrongPublicKey), 'shoud not verify');
   });
+  await Promise.all(promises);
   t.end();
 });
 
 // run only on nodejs version >= 0.11.8
 if (semver.gte(nodeVersion, '0.11.8')) {
-  test('RSA with passphrase signing, verifying', function (t) {
+  test('RSA with passphrase signing, verifying', async function (t) {
   const input = 'test input';
-  BIT_DEPTHS.forEach(function (bits) {
+  const promises = BIT_DEPTHS.map(async function (bits) {
     const algo = jwa('RS'+bits);
     const secret = 'test_pass';
-    const sig = algo.sign(input, {key: rsaPrivateKeyWithPassphrase, passphrase: secret});
-    t.ok(algo.verify(input, sig, rsaPublicKeyWithPassphrase), 'should verify');
+    const sig = await algo.sign(input, {key: rsaPrivateKeyWithPassphrase, passphrase: secret});
+    t.ok(await algo.verify(input, sig, rsaPublicKeyWithPassphrase), 'should verify');
   });
+  await Promise.all(promises);
   t.end();
   });
 }
 
 if (SUPPORTS_KEY_OBJECTS) {
   BIT_DEPTHS.forEach(function (bits) {
-    test('RS'+bits+': signing, verifying (KeyObject)', function (t) {
+    test('RS'+bits+': signing, verifying (KeyObject)', async function (t) {
       const input = 'h. jon benjamin';
       const algo = jwa('RS'+bits);
-      const sig = algo.sign(input, crypto.createPrivateKey(rsaPrivateKey));
-      t.ok(algo.verify(input, sig, crypto.createPublicKey(rsaPublicKey)), 'should verify');
-      t.notOk(algo.verify(input, sig, crypto.createPublicKey(rsaWrongPublicKey)), 'shoud not verify');
+      const sig = await algo.sign(input, crypto.createPrivateKey(rsaPrivateKey));
+      t.ok(await algo.verify(input, sig, crypto.createPublicKey(rsaPublicKey)), 'should verify');
+      t.notOk(await algo.verify(input, sig, crypto.createPublicKey(rsaWrongPublicKey)), 'shoud not verify');
       t.end();
     });
   });
@@ -116,25 +119,26 @@ if (SUPPORTS_KEY_OBJECTS) {
 
 
 if (semver.satisfies(nodeVersion, '^6.12.0 || >=8.0.0')) {
-  test('RSA-PSS signing, verifying', function (t) {
+  test('RSA-PSS signing, verifying', async function (t) {
     const input = 'h. jon benjamin';
-    BIT_DEPTHS.forEach(function (bits) {
+    const promises = BIT_DEPTHS.map(async function (bits) {
       const algo = jwa('PS'+bits);
-      const sig = algo.sign(input, rsaPrivateKey);
-      t.ok(algo.verify(input, sig, rsaPublicKey), 'should verify');
-      t.notOk(algo.verify(input, sig, rsaWrongPublicKey), 'shoud not verify');
+      const sig = await algo.sign(input, rsaPrivateKey);
+      t.ok(await algo.verify(input, sig, rsaPublicKey), 'should verify');
+      t.notOk(await algo.verify(input, sig, rsaWrongPublicKey), 'shoud not verify');
     });
+    await Promise.all(promises);
     t.end();
   });
 
   if (SUPPORTS_KEY_OBJECTS) {
     BIT_DEPTHS.forEach(function (bits) {
-      test('PS'+bits+': signing, verifying (KeyObject)', function (t) {
+      test('PS'+bits+': signing, verifying (KeyObject)', async function (t) {
         const input = 'h. jon benjamin';
         const algo = jwa('PS'+bits);
-        const sig = algo.sign(input, crypto.createPrivateKey(rsaPrivateKey));
-        t.ok(algo.verify(input, sig, crypto.createPublicKey(rsaPublicKey)), 'should verify');
-        t.notOk(algo.verify(input, sig, crypto.createPublicKey(rsaWrongPublicKey)), 'should not verify');
+        const sig = await algo.sign(input, crypto.createPrivateKey(rsaPrivateKey));
+        t.ok(await algo.verify(input, sig, crypto.createPublicKey(rsaPublicKey)), 'should verify');
+        t.notOk(await algo.verify(input, sig, crypto.createPublicKey(rsaWrongPublicKey)), 'should not verify');
         t.end();
       });
     });
@@ -142,226 +146,226 @@ if (semver.satisfies(nodeVersion, '^6.12.0 || >=8.0.0')) {
 }
 
 
+// BIT_DEPTHS.forEach(function (bits) {
+//   test('RS'+bits+': openssl sign -> js verify', function (t) {
+//     const input = 'iodine';
+//     const algo = jwa('RS'+bits);
+//     const dgst = spawn('openssl', ['dgst', '-sha'+bits, '-sign', __dirname + '/rsa-private.pem']);
+//     var buffer = Buffer.alloc(0);
+
+//     dgst.stdout.on('data', function (buf) {
+//       buffer = Buffer.concat([buffer, buf]);
+//     });
+
+//     dgst.stdin.write(input, function() {
+//       dgst.stdin.end();
+//     });
+
+//     dgst.on('exit', async function (code) {
+//       if (code !== 0)
+//         return t.fail('could not test interop: openssl failure');
+//       const sig = base64url(buffer);
+
+//       t.ok(await algo.verify(input, sig, rsaPublicKey), 'should verify');
+//       t.notOk(await algo.verify(input, sig, rsaWrongPublicKey), 'should not verify');
+//       t.end();
+//     });
+//   });
+// });
+
+// if (semver.satisfies(nodeVersion, '^6.12.0 || >=8.0.0')) {
+//   BIT_DEPTHS.forEach(function (bits) {
+//     test('PS'+bits+': openssl sign -> js verify', function (t) {
+//       const input = 'iodine';
+//       const algo = jwa('PS'+bits);
+//       const dgst = spawn('openssl', ['dgst', '-sha'+bits, '-sigopt', 'rsa_padding_mode:pss', '-sigopt', 'rsa_pss_saltlen:-1', '-sign', __dirname + '/rsa-private.pem']);
+//       var buffer = Buffer.alloc(0);
+
+//       dgst.stdout.on('data', function (buf) {
+//         buffer = Buffer.concat([buffer, buf]);
+//       });
+
+//       dgst.stdin.write(input, function() {
+//         dgst.stdin.end();
+//       });
+
+//       dgst.on('exit', async function (code) {
+//         if (code !== 0)
+//           return t.fail('could not test interop: openssl failure');
+//         const sig = base64url(buffer);
+
+//         t.ok(await algo.verify(input, sig, rsaPublicKey), 'should verify');
+//         t.notOk(await algo.verify(input, sig, rsaWrongPublicKey), 'should not verify');
+//         t.end();
+//       });
+//     });
+//   });
+// }
+
 BIT_DEPTHS.forEach(function (bits) {
-  test('RS'+bits+': openssl sign -> js verify', function (t) {
-    const input = 'iodine';
-    const algo = jwa('RS'+bits);
-    const dgst = spawn('openssl', ['dgst', '-sha'+bits, '-sign', __dirname + '/rsa-private.pem']);
-    var buffer = Buffer.alloc(0);
-
-    dgst.stdout.on('data', function (buf) {
-      buffer = Buffer.concat([buffer, buf]);
-    });
-
-    dgst.stdin.write(input, function() {
-      dgst.stdin.end();
-    });
-
-    dgst.on('exit', function (code) {
-      if (code !== 0)
-        return t.fail('could not test interop: openssl failure');
-      const sig = base64url(buffer);
-
-      t.ok(algo.verify(input, sig, rsaPublicKey), 'should verify');
-      t.notOk(algo.verify(input, sig, rsaWrongPublicKey), 'should not verify');
-      t.end();
-    });
-  });
-});
-
-if (semver.satisfies(nodeVersion, '^6.12.0 || >=8.0.0')) {
-  BIT_DEPTHS.forEach(function (bits) {
-    test('PS'+bits+': openssl sign -> js verify', function (t) {
-      const input = 'iodine';
-      const algo = jwa('PS'+bits);
-      const dgst = spawn('openssl', ['dgst', '-sha'+bits, '-sigopt', 'rsa_padding_mode:pss', '-sigopt', 'rsa_pss_saltlen:-1', '-sign', __dirname + '/rsa-private.pem']);
-      var buffer = Buffer.alloc(0);
-
-      dgst.stdout.on('data', function (buf) {
-        buffer = Buffer.concat([buffer, buf]);
-      });
-
-      dgst.stdin.write(input, function() {
-        dgst.stdin.end();
-      });
-
-      dgst.on('exit', function (code) {
-        if (code !== 0)
-          return t.fail('could not test interop: openssl failure');
-        const sig = base64url(buffer);
-
-        t.ok(algo.verify(input, sig, rsaPublicKey), 'should verify');
-        t.notOk(algo.verify(input, sig, rsaWrongPublicKey), 'should not verify');
-        t.end();
-      });
-    });
-  });
-}
-
-BIT_DEPTHS.forEach(function (bits) {
-  test('ES'+bits+': signing, verifying', function (t) {
+  test('ES'+bits+': signing, verifying', async function (t) {
     const input = 'kristen schaal';
     const algo = jwa('ES'+bits);
-    const sig = algo.sign(input, ecdsaPrivateKey[bits]);
-    t.ok(algo.verify(input, sig, ecdsaPublicKey[bits]), 'should verify');
-    t.notOk(algo.verify(input, sig, ecdsaWrongPublicKey[bits]), 'should not verify');
+    const sig = await algo.sign(input, ecdsaPrivateKey[bits]);
+    t.ok(await algo.verify(input, sig, ecdsaPublicKey[bits]), 'should verify');
+    t.notOk(await algo.verify(input, sig, ecdsaWrongPublicKey[bits]), 'should not verify');
     t.end();
   });
 });
 
 if (SUPPORTS_KEY_OBJECTS) {
   BIT_DEPTHS.forEach(function (bits) {
-    test('ES'+bits+': signing, verifying (KeyObject)', function (t) {
+    test('ES'+bits+': signing, verifying (KeyObject)', async function (t) {
       const input = 'kristen schaal';
       const algo = jwa('ES'+bits);
-      const sig = algo.sign(input, crypto.createPrivateKey(ecdsaPrivateKey[bits]));
-      t.ok(algo.verify(input, sig, crypto.createPublicKey(ecdsaPublicKey[bits])), 'should verify');
-      t.notOk(algo.verify(input, sig, crypto.createPublicKey(ecdsaWrongPublicKey[bits])), 'should not verify');
+      const sig = await algo.sign(input, crypto.createPrivateKey(ecdsaPrivateKey[bits]));
+      t.ok(await algo.verify(input, sig, crypto.createPublicKey(ecdsaPublicKey[bits])), 'should verify');
+      t.notOk(await algo.verify(input, sig, crypto.createPublicKey(ecdsaWrongPublicKey[bits])), 'should not verify');
       t.end();
     });
   });
 }
 
-BIT_DEPTHS.forEach(function (bits) {
-  test('ES'+bits+': openssl sign -> js verify', function (t) {
-    const input = 'strawberry';
-    const algo = jwa('ES'+bits);
-    const dgst = spawn('openssl', ['dgst', '-sha'+bits, '-sign', __dirname + '/ec'+bits+'-private.pem']);
-    var buffer = Buffer.alloc(0);
-    dgst.stdin.end(input);
-    dgst.stdout.on('data', function (buf) {
-      buffer = Buffer.concat([buffer, buf]);
-    });
-    dgst.on('exit', function (code) {
-      if (code !== 0)
-        return t.fail('could not test interop: openssl failure');
-      const sig = formatEcdsa.derToJose(buffer, 'ES' + bits);
-      t.ok(algo.verify(input, sig, ecdsaPublicKey[bits]), 'should verify');
-      t.notOk(algo.verify(input, sig, ecdsaWrongPublicKey[bits]), 'should not verify');
-      t.end();
-    });
-  });
-});
+// BIT_DEPTHS.forEach(function (bits) {
+//   test('ES'+bits+': openssl sign -> js verify', function (t) {
+//     const input = 'strawberry';
+//     const algo = jwa('ES'+bits);
+//     const dgst = spawn('openssl', ['dgst', '-sha'+bits, '-sign', __dirname + '/ec'+bits+'-private.pem']);
+//     var buffer = Buffer.alloc(0);
+//     dgst.stdin.end(input);
+//     dgst.stdout.on('data', function (buf) {
+//       buffer = Buffer.concat([buffer, buf]);
+//     });
+//     dgst.on('exit', async function (code) {
+//       if (code !== 0)
+//         return t.fail('could not test interop: openssl failure');
+//       const sig = formatEcdsa.derToJose(buffer, 'ES' + bits);
+//       t.ok(await algo.verify(input, sig, ecdsaPublicKey[bits]), 'should verify');
+//       t.notOk(await algo.verify(input, sig, ecdsaWrongPublicKey[bits]), 'should not verify');
+//       t.end();
+//     });
+//   });
+// });
 
-BIT_DEPTHS.forEach(function (bits) {
-  const input = 'bob\'s';
-  const inputFile = path.join(__dirname, 'interop.input.txt');
-  const signatureFile = path.join(__dirname, 'interop.sig.txt');
+// BIT_DEPTHS.forEach(function (bits) {
+//   const input = 'bob\'s';
+//   const inputFile = path.join(__dirname, 'interop.input.txt');
+//   const signatureFile = path.join(__dirname, 'interop.sig.txt');
 
-  function opensslVerify(keyfile) {
-    return spawn('openssl', [
-      'dgst',
-      '-sha'+bits,
-      '-verify', keyfile,
-      '-signature', signatureFile,
-      inputFile
-    ]);
-  }
+//   function opensslVerify(keyfile) {
+//     return spawn('openssl', [
+//       'dgst',
+//       '-sha'+bits,
+//       '-verify', keyfile,
+//       '-signature', signatureFile,
+//       inputFile
+//     ]);
+//   }
 
-  test('ES'+bits+': js sign -> openssl verify', function (t) {
-    const publicKeyFile = path.join(__dirname, 'ec'+bits+'-public.pem');
-    const wrongPublicKeyFile = path.join(__dirname, 'ec'+bits+'-wrong-public.pem');
-    const privateKey = ecdsaPrivateKey[bits];
-    const signature =
-      formatEcdsa.joseToDer(
-        jwa('ES'+bits).sign(input, privateKey),
-        'ES' + bits
-      );
-    fs.writeFileSync(inputFile, input);
-    fs.writeFileSync(signatureFile, signature);
+//   test('ES'+bits+': js sign -> openssl verify', async function (t) {
+//     const publicKeyFile = path.join(__dirname, 'ec'+bits+'-public.pem');
+//     const wrongPublicKeyFile = path.join(__dirname, 'ec'+bits+'-wrong-public.pem');
+//     const privateKey = ecdsaPrivateKey[bits];
+//     const signature =
+//       formatEcdsa.joseToDer(
+//         await jwa('ES'+bits).sign(input, privateKey),
+//         'ES' + bits
+//       );
+//     fs.writeFileSync(inputFile, input);
+//     fs.writeFileSync(signatureFile, signature);
 
-    t.plan(2);
-    opensslVerify(publicKeyFile).on('exit', function (code) {
-      t.same(code, 0, 'should be a successful exit');
-    });
-    opensslVerify(wrongPublicKeyFile).on('exit', function (code) {
-      t.same(code, 1, 'should be invalid');
-    });
-  });
-});
+//     t.plan(2);
+//     opensslVerify(publicKeyFile).on('exit', function (code) {
+//       t.same(code, 0, 'should be a successful exit');
+//     });
+//     opensslVerify(wrongPublicKeyFile).on('exit', function (code) {
+//       t.same(code, 1, 'should be invalid');
+//     });
+//   });
+// });
 
-BIT_DEPTHS.forEach(function (bits) {
-  const input = 'burgers';
-  const inputFile = path.join(__dirname, 'interop.input.txt');
-  const signatureFile = path.join(__dirname, 'interop.sig.txt');
+// BIT_DEPTHS.forEach(function (bits) {
+//   const input = 'burgers';
+//   const inputFile = path.join(__dirname, 'interop.input.txt');
+//   const signatureFile = path.join(__dirname, 'interop.sig.txt');
 
-  function opensslVerify(keyfile) {
-    return spawn('openssl', [
-      'dgst',
-      '-sha'+bits,
-      '-verify', keyfile,
-      '-signature', signatureFile,
-      inputFile
-    ]);
-  }
+//   function opensslVerify(keyfile) {
+//     return spawn('openssl', [
+//       'dgst',
+//       '-sha'+bits,
+//       '-verify', keyfile,
+//       '-signature', signatureFile,
+//       inputFile
+//     ]);
+//   }
 
-  test('RS'+bits+': js sign -> openssl verify', function (t) {
-    const publicKeyFile = path.join(__dirname, 'rsa-public.pem');
-    const wrongPublicKeyFile = path.join(__dirname, 'rsa-wrong-public.pem');
-    const privateKey = rsaPrivateKey;
-    const signature =
-      base64url.toBuffer(
-        jwa('RS'+bits).sign(input, privateKey)
-      );
-    fs.writeFileSync(signatureFile, signature);
-    fs.writeFileSync(inputFile, input);
+//   test('RS'+bits+': js sign -> openssl verify', async function (t) {
+//     const publicKeyFile = path.join(__dirname, 'rsa-public.pem');
+//     const wrongPublicKeyFile = path.join(__dirname, 'rsa-wrong-public.pem');
+//     const privateKey = rsaPrivateKey;
+//     const signature =
+//       base64url.toBuffer(
+//         await jwa('RS'+bits).sign(input, privateKey)
+//       );
+//     fs.writeFileSync(signatureFile, signature);
+//     fs.writeFileSync(inputFile, input);
 
-    t.plan(2);
-    opensslVerify(publicKeyFile).on('exit', function (code) {
-      t.same(code, 0, 'should be a successful exit');
-    });
-    opensslVerify(wrongPublicKeyFile).on('exit', function (code) {
-      t.same(code, 1, 'should be invalid');
-    });
-  });
-});
+//     t.plan(2);
+//     opensslVerify(publicKeyFile).on('exit', function (code) {
+//       t.same(code, 0, 'should be a successful exit');
+//     });
+//     opensslVerify(wrongPublicKeyFile).on('exit', function (code) {
+//       t.same(code, 1, 'should be invalid');
+//     });
+//   });
+// });
 
-if (semver.satisfies(nodeVersion, '^6.12.0 || >=8.0.0')) {
-  BIT_DEPTHS.forEach(function (bits) {
-    const input = 'burgers';
-    const inputFile = path.join(__dirname, 'interop.input.txt');
-    const signatureFile = path.join(__dirname, 'interop.sig.txt');
+// if (semver.satisfies(nodeVersion, '^6.12.0 || >=8.0.0')) {
+//   BIT_DEPTHS.forEach(function (bits) {
+//     const input = 'burgers';
+//     const inputFile = path.join(__dirname, 'interop.input.txt');
+//     const signatureFile = path.join(__dirname, 'interop.sig.txt');
 
-    function opensslVerify(keyfile) {
-      return spawn('openssl', [
-        'dgst',
-        '-sha'+bits,
-        '-sigopt', 'rsa_padding_mode:pss',
-        '-verify', keyfile,
-        '-signature', signatureFile,
-        inputFile
-      ]);
-    }
+//     function opensslVerify(keyfile) {
+//       return spawn('openssl', [
+//         'dgst',
+//         '-sha'+bits,
+//         '-sigopt', 'rsa_padding_mode:pss',
+//         '-verify', keyfile,
+//         '-signature', signatureFile,
+//         inputFile
+//       ]);
+//     }
 
-    test('PS'+bits+': js sign -> openssl verify', function (t) {
-      const publicKeyFile = path.join(__dirname, 'rsa-public.pem');
-      const wrongPublicKeyFile = path.join(__dirname, 'rsa-wrong-public.pem');
-      const privateKey = rsaPrivateKey;
-      const signature =
-        base64url.toBuffer(
-          jwa('PS'+bits).sign(input, privateKey)
-        );
-      fs.writeFileSync(signatureFile, signature);
-      fs.writeFileSync(inputFile, input);
+//     test('PS'+bits+': js sign -> openssl verify', async function (t) {
+//       const publicKeyFile = path.join(__dirname, 'rsa-public.pem');
+//       const wrongPublicKeyFile = path.join(__dirname, 'rsa-wrong-public.pem');
+//       const privateKey = rsaPrivateKey;
+//       const signature =
+//         base64url.toBuffer(
+//           await jwa('PS'+bits).sign(input, privateKey)
+//         );
+//       fs.writeFileSync(signatureFile, signature);
+//       fs.writeFileSync(inputFile, input);
 
-      t.plan(2);
-      opensslVerify(publicKeyFile).on('exit', function (code) {
-        t.same(code, 0, 'should be a successful exit');
-      });
-      opensslVerify(wrongPublicKeyFile).on('exit', function (code) {
-        t.same(code, 1, 'should be invalid');
-      });
-    });
-  });
-}
+//       t.plan(2);
+//       opensslVerify(publicKeyFile).on('exit', function (code) {
+//         t.same(code, 0, 'should be a successful exit');
+//       });
+//       opensslVerify(wrongPublicKeyFile).on('exit', function (code) {
+//         t.same(code, 1, 'should be invalid');
+//       });
+//     });
+//   });
+// }
 
 
-test('jwa: none', function (t) {
+test('jwa: none', async function (t) {
   const input = 'whatever';
   const algo = jwa('none');
-  const sig = algo.sign(input);
-  t.ok(algo.verify(input, sig), 'should verify');
-  t.notOk(algo.verify(input, 'something'), 'shoud not verify');
+  const sig = await algo.sign(input);
+  t.ok(await algo.verify(input, sig), 'should verify');
+  t.notOk(await algo.verify(input, 'something'), 'shoud not verify');
   t.end();
 });
 
@@ -415,10 +419,10 @@ test('jwa: some garbage algorithm', function (t) {
   });
 });
 
-test('jwa: hs512, missing secret', function (t) {
+test('jwa: hs512, missing secret', async function (t) {
   const algo = jwa('HS512');
   try {
-    algo.sign('some stuff');
+    await algo.sign('some stuff');
     t.fail('should throw');
   } catch(ex) {
     t.same(ex.name, 'TypeError');
@@ -427,29 +431,29 @@ test('jwa: hs512, missing secret', function (t) {
   t.end();
 });
 
-test('jwa: hs512, weird input type', function (t) {
+test('jwa: hs512, weird input type', async function (t) {
   const algo = jwa('HS512');
   const input = {a: ['whatever', 'this', 'is']};
   const secret = 'bones';
-  const sig = algo.sign(input, secret);
-  t.ok(algo.verify(input, sig, secret), 'should verify');
-  t.notOk(algo.verify(input, sig, 'other thing'), 'should not verify');
+  const sig = await algo.sign(input, secret);
+  t.ok(await algo.verify(input, sig, secret), 'should verify');
+  t.notOk(await algo.verify(input, sig, 'other thing'), 'should not verify');
   t.end();
 });
 
-test('jwa: rs512, weird input type', function (t) {
+test('jwa: rs512, weird input type', async function (t) {
   const algo = jwa('RS512');
   const input = {a: ['whatever', 'this', 'is']};
-  const sig = algo.sign(input, rsaPrivateKey);
-  t.ok(algo.verify(input, sig, rsaPublicKey), 'should verify');
-  t.notOk(algo.verify(input, sig, rsaWrongPublicKey), 'should not verify');
+  const sig = await algo.sign(input, rsaPrivateKey);
+  t.ok(await algo.verify(input, sig, rsaPublicKey), 'should verify');
+  t.notOk(await algo.verify(input, sig, rsaWrongPublicKey), 'should not verify');
   t.end();
 });
 
-test('jwa: rs512, missing signing key', function (t) {
+test('jwa: rs512, missing signing key', async function (t) {
   const algo = jwa('RS512');
   try {
-    algo.sign('some stuff');
+    await algo.sign('some stuff');
     t.fail('should throw');
   } catch(ex) {
     t.same(ex.name, 'TypeError');
@@ -458,12 +462,12 @@ test('jwa: rs512, missing signing key', function (t) {
   t.end();
 });
 
-test('jwa: rs512, missing verifying key', function (t) {
+test('jwa: rs512, missing verifying key', async function (t) {
   const algo = jwa('RS512');
   const input = {a: ['whatever', 'this', 'is']};
-  const sig = algo.sign(input, rsaPrivateKey);
+  const sig = await algo.sign(input, rsaPrivateKey);
   try {
-    algo.verify(input, sig);
+    await algo.verify(input, sig)
     t.fail('should throw');
   } catch(ex) {
     t.same(ex.name, 'TypeError');
@@ -473,19 +477,19 @@ test('jwa: rs512, missing verifying key', function (t) {
 });
 
 if (semver.satisfies(nodeVersion, '^6.12.0 || >=8.0.0')) {
-  test('jwa: ps512, weird input type', function (t) {
+  test('jwa: ps512, weird input type', async function (t) {
     const algo = jwa('PS512');
     const input = {a: ['whatever', 'this', 'is']};
-    const sig = algo.sign(input, rsaPrivateKey);
-    t.ok(algo.verify(input, sig, rsaPublicKey), 'should verify');
-    t.notOk(algo.verify(input, sig, rsaWrongPublicKey), 'should not verify');
+    const sig = await algo.sign(input, rsaPrivateKey);
+    t.ok(await algo.verify(input, sig, rsaPublicKey), 'should verify');
+    t.notOk(await algo.verify(input, sig, rsaWrongPublicKey), 'should not verify');
     t.end();
   });
 
-  test('jwa: ps512, missing signing key', function (t) {
+  test('jwa: ps512, missing signing key', async function (t) {
     const algo = jwa('PS512');
     try {
-      algo.sign('some stuff');
+      await algo.sign('some stuff');
       t.fail('should throw');
     } catch(ex) {
       t.same(ex.name, 'TypeError');
@@ -494,12 +498,12 @@ if (semver.satisfies(nodeVersion, '^6.12.0 || >=8.0.0')) {
     t.end();
   });
 
-  test('jwa: ps512, missing verifying key', function (t) {
+  test('jwa: ps512, missing verifying key', async function (t) {
     const algo = jwa('PS512');
     const input = {a: ['whatever', 'this', 'is']};
-    const sig = algo.sign(input, rsaPrivateKey);
+    const sig = await algo.sign(input, rsaPrivateKey);
     try {
-      algo.verify(input, sig);
+      await algo.verify(input, sig);
       t.fail('should throw');
     } catch(ex) {
       t.same(ex.name, 'TypeError');

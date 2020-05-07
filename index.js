@@ -3,6 +3,8 @@ var Buffer = require('safe-buffer').Buffer;
 var crypto = require('crypto');
 var formatEcdsa = require('ecdsa-sig-formatter');
 var util = require('util');
+const { KeyManagementServiceClient } = require('@google-cloud/kms');
+const KMS_CLIENT = new KeyManagementServiceClient();
 
 var MSG_INVALID_ALGORITHM = '"%s" is not a valid algorithm.\n  Supported algorithms are:\n  "HS256", "HS384", "HS512", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512", "ES256", "ES384", "ES512" and "none".'
 var MSG_INVALID_SECRET = 'secret must be a string or buffer';
@@ -13,6 +15,46 @@ var supportsKeyObjects = typeof crypto.createPublicKey === 'function';
 if (supportsKeyObjects) {
   MSG_INVALID_VERIFIER_KEY += ' or a KeyObject';
   MSG_INVALID_SECRET += 'or a KeyObject';
+}
+
+
+async function convertToPublicKey(key)
+{
+  if (Buffer.isBuffer(key)) {
+    return key;
+  }
+
+  if (typeof key === 'string') {
+    return key;
+  }
+  
+  if (!key || !key.projectId) {
+    return key;
+  }
+
+  // Get Public Key from Google KMS private key
+  const {
+    projectId,
+    locationId,
+    keyRingId,
+    keyId,
+    versionId
+  } = key;
+
+  // Build the version name
+  const versionName = KMS_CLIENT.cryptoKeyVersionPath(
+    projectId,
+    locationId,
+    keyRingId,
+    keyId,
+    versionId
+  );
+
+  const [publicKey] = await KMS_CLIENT.getPublicKey({
+    name: versionName,
+  });
+
+  return publicKey.pem;
 }
 
 function checkIsPublicKey(key) {
@@ -137,7 +179,7 @@ function createHmacSigner(bits) {
 
 function createHmacVerifier(bits) {
   return async function verify(thing, signature, secret) {
-    var computedSig = createHmacSigner(bits)(thing, secret);
+    var computedSig = await createHmacSigner(bits)(thing, secret);
     return bufferEqual(Buffer.from(signature), Buffer.from(computedSig));
   }
 }
@@ -156,6 +198,7 @@ function createKeySigner(bits) {
 
 function createKeyVerifier(bits) {
   return async function verify(thing, signature, publicKey) {
+    publicKey = await convertToPublicKey(publicKey);
     checkIsPublicKey(publicKey);
     thing = normalizeInput(thing);
     signature = toBase64(signature);
@@ -181,6 +224,7 @@ function createPSSKeySigner(bits) {
 
 function createPSSKeyVerifier(bits) {
   return async function verify(thing, signature, publicKey) {
+    publicKey = await convertToPublicKey(publicKey);
     checkIsPublicKey(publicKey);
     thing = normalizeInput(thing);
     signature = toBase64(signature);
@@ -197,7 +241,7 @@ function createPSSKeyVerifier(bits) {
 function createECDSASigner(bits) {
   var inner = createKeySigner(bits);
   return async function sign() {
-    var signature = inner.apply(null, arguments);
+    var signature = await inner.apply(null, arguments);
     signature = formatEcdsa.derToJose(signature, 'ES' + bits);
     return signature;
   };
@@ -207,7 +251,7 @@ function createECDSAVerifer(bits) {
   var inner = createKeyVerifier(bits);
   return async function verify(thing, signature, publicKey) {
     signature = formatEcdsa.joseToDer(signature, 'ES' + bits).toString('base64');
-    var result = inner(thing, signature, publicKey);
+    var result = await inner(thing, signature, publicKey);
     return result;
   };
 }

@@ -2,8 +2,21 @@
 
 ## A close-as-possible replacement for the node-jwa library to let you use Google Cloud KMS
 
-No changes yet - first up is signing
+Idea: if you pass in a private key object of the format:
+```
+key = {
+    projectId,
+    locationId,
+    keyRingId,
+    keyId,
+    versionId
+}
+```
+the library will use the Google KMS.
 
+### Side-effect:
+We require this interface to be asyncronous. The interface is now flagged async, so either await on them
+or handle the results as Promises.
 
 # Forked from:
 
@@ -114,8 +127,8 @@ const input = 'super important stuff';
 const secret = 'shhhhhh';
 
 const signature = hmac.sign(input, secret);
-hmac.verify(input, signature, secret) // === true
-hmac.verify(input, signature, 'trickery!') // === false
+await hmac.verify(input, signature, secret) // === true
+await hmac.verify(input, signature, 'trickery!') // === false
 ```
 
 With keys
@@ -129,7 +142,7 @@ const ecdsa = jwa('ES512');
 const input = 'very important stuff';
 
 const signature = ecdsa.sign(input, privateKey);
-ecdsa.verify(input, signature, publicKey) // === true
+await ecdsa.verify(input, signature, publicKey) // === true
 ```
 ## License
 

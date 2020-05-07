@@ -13,9 +13,9 @@ const input = fs.readFileSync(path.join(__dirname, 'input.txt'));
 
 const algo = jwa('none');
 
-test('A.5', function (t) {
+test('A.5', async function (t) {
 	t.plan(2);
 
-	t.equal(algo.sign(input), '');
-	t.ok(algo.verify(input, ''));
+	t.equal(await algo.sign(input), '');
+	t.ok(await algo.verify(input, ''));
 })
