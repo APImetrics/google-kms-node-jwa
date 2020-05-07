@@ -167,6 +167,37 @@ function normalizeInput(thing) {
   return thing;
 }
 
+function isGoogleKmsKey(key) {
+  return key && key.projectId && key.locationId && key.keyRingId;
+}
+
+async function signWithGoogleKms(bits, privateKey, message) {
+  const {projectId, locationId, keyRingId, keyId, versionId} = privateKey;
+
+  const hashScheme = 'sha' + bits;
+  const digest = crypto.createHash(hashScheme);
+  digest.update(message);
+
+  // Build the version name
+  const versionName = KMS_CLIENT.cryptoKeyVersionPath(
+    projectId,
+    locationId,
+    keyRingId,
+    keyId,
+    versionId
+  );
+
+  // Sign the message with Cloud KMS
+  const [signResponse] = await KMS_CLIENT.asymmetricSign({
+    name: versionName,
+    digest: {
+      [hashScheme]: digest.digest(),
+    },
+  });
+  const encoded = signResponse.signature.toString('base64');
+  return fromBase64(encoded);
+}
+
 function createHmacSigner(bits) {
   return async function sign(thing, secret) {
     checkIsSecretKey(secret);
@@ -186,13 +217,18 @@ function createHmacVerifier(bits) {
 
 function createKeySigner(bits) {
  return async function sign(thing, privateKey) {
-    checkIsPrivateKey(privateKey);
     thing = normalizeInput(thing);
-    // Even though we are specifying "RSA" here, this works with ECDSA
-    // keys as well.
-    var signer = crypto.createSign('RSA-SHA' + bits);
-    var sig = (signer.update(thing), signer.sign(privateKey, 'base64'));
-    return fromBase64(sig);
+
+    if (isGoogleKmsKey(privateKey)) {
+      return signWithGoogleKms(bits, privateKey, thing);
+    } else {
+      checkIsPrivateKey(privateKey);
+      // Even though we are specifying "RSA" here, this works with ECDSA
+      // keys as well.
+      var signer = crypto.createSign('RSA-SHA' + bits);
+      var sig = (signer.update(thing), signer.sign(privateKey, 'base64'));
+      return fromBase64(sig);
+    }
   }
 }
 
@@ -210,15 +246,20 @@ function createKeyVerifier(bits) {
 
 function createPSSKeySigner(bits) {
   return async function sign(thing, privateKey) {
-    checkIsPrivateKey(privateKey);
     thing = normalizeInput(thing);
-    var signer = crypto.createSign('RSA-SHA' + bits);
-    var sig = (signer.update(thing), signer.sign({
-      key: privateKey,
-      padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-      saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST
-    }, 'base64'));
-    return fromBase64(sig);
+
+    if (isGoogleKmsKey(privateKey)) {
+      return signWithGoogleKms(bits, privateKey, thing);
+    } else {
+      checkIsPrivateKey(privateKey);
+      var signer = crypto.createSign('RSA-SHA' + bits);
+      var sig = (signer.update(thing), signer.sign({
+        key: privateKey,
+        padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+        saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST
+      }, 'base64'));
+      return fromBase64(sig);
+    }
   }
 }
 

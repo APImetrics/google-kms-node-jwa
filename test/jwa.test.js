@@ -33,6 +33,13 @@ const ecdsaWrongPublicKey = {
   '384': fs.readFileSync(__dirname + '/ec384-wrong-public.pem').toString(),
   '512': fs.readFileSync(__dirname + '/ec512-wrong-public.pem').toString(),
 };
+const googleKmsPrivateKey = { 
+  projectId: 'apimetrics-qc', 
+  locationId: 'us-central1', 
+  keyRingId: 'google-kms-node-jwa', 
+  keyId: 'rsa-private', 
+  versionId: '4'
+};
 
 const BIT_DEPTHS = ['256', '384', '512'];
 
@@ -509,6 +516,21 @@ if (semver.satisfies(nodeVersion, '^6.12.0 || >=8.0.0')) {
       t.same(ex.name, 'TypeError');
       t.ok(ex.message.match(/key/), 'should say something about keys');
     }
+    t.end();
+  });
+}
+
+if (semver.satisfies(nodeVersion, '^6.12.0 || >=8.0.0')) {
+  test('RSA-PSS signing, Google KMS key, verifying', async function (t) {
+    const input = 'h. jon benjamin';
+    const promises = [256].map(async function (bits) {
+      const algo = jwa('PS'+bits);
+      const sig = await algo.sign(input, googleKmsPrivateKey);
+      t.ok(await algo.verify(input, sig, googleKmsPrivateKey), 'should verify');
+      t.ok(await algo.verify(input, sig, rsaPublicKey), 'should verify');
+      t.notOk(await algo.verify(input, sig, rsaWrongPublicKey), 'shoud not verify');
+    });
+    await Promise.all(promises);
     t.end();
   });
 }
