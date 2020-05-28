@@ -32,6 +32,9 @@ gcloud kms keys versions import --import-job "rsa-private-job" --location "us-ce
 gcloud kms keys versions list --keyring "google-kms-node-jwa" --location "us-central1" --key "rsa-private"  
 ```
 
+# Version
+Release 1 - 2020-05-28
+
 # Forked from:
 
 # node-jwa [![Build Status](https://travis-ci.org/brianloveswords/node-jwa.svg?branch=master)](https://travis-ci.org/brianloveswords/node-jwa)
