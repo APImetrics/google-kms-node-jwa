@@ -2,8 +2,38 @@
 
 ## A close-as-possible replacement for the node-jwa library to let you use Google Cloud KMS
 
-No changes yet - first up is signing
+Idea: if you pass in a private key object of the format:
+```
+key = {
+    projectId,
+    locationId,
+    keyRingId,
+    keyId,
+    versionId
+}
+```
+the library will use the Google KMS.
 
+### Side-effect:
+We require this interface to be asyncronous. The interface is now flagged async, so either await on them
+or handle the results as Promises.
+
+
+### Setup:
+To add a cert to Google KMS:
+```
+openssl pkcs8 -topk8 -nocrypt -inform PEM -outform DER -in test/rsa-private.pem -out rsa-private.der
+
+gcloud kms keyrings create "google-kms-node-jwa" --location us-central1
+gcloud kms keys create "rsa-private" --location us-central1 --keyring "google-kms-node-jwa" --purpose asymmetric-signing --default-algorithm rsa-sign-pss-2048-sha256 --skip-initial-version-creation
+gcloud kms import-jobs create "rsa-private-job" --location us-central1 --keyring "google-kms-node-jwa" --import-method rsa-oaep-3072-sha1-aes-256 --protection-level software
+gcloud kms import-jobs describe "rsa-private-job" --location "us-central1" --keyring "google-kms-node-jwa" --format="value(state)"
+gcloud kms keys versions import --import-job "rsa-private-job" --location "us-central1" --keyring "google-kms-node-jwa" --key "rsa-private" --algorithm rsa-sign-pss-2048-sha256 --target-key-file test/rsa-private.der 
+gcloud kms keys versions list --keyring "google-kms-node-jwa" --location "us-central1" --key "rsa-private"  
+```
+
+# Version
+Release 1 - 2020-05-28
 
 # Forked from:
 
@@ -114,8 +144,8 @@ const input = 'super important stuff';
 const secret = 'shhhhhh';
 
 const signature = hmac.sign(input, secret);
-hmac.verify(input, signature, secret) // === true
-hmac.verify(input, signature, 'trickery!') // === false
+await hmac.verify(input, signature, secret) // === true
+await hmac.verify(input, signature, 'trickery!') // === false
 ```
 
 With keys
@@ -129,7 +159,7 @@ const ecdsa = jwa('ES512');
 const input = 'very important stuff';
 
 const signature = ecdsa.sign(input, privateKey);
-ecdsa.verify(input, signature, publicKey) // === true
+await ecdsa.verify(input, signature, publicKey) // === true
 ```
 ## License
 

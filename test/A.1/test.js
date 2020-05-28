@@ -20,15 +20,15 @@ const signatureFromBytes = Buffer.from(JSON.parse(fs.readFileSync(path.join(__di
 
 const algo = jwa('HS256');
 
-test('A.1', function (t) {
+test('A.1', async function (t) {
 	t.plan(6);
 
 	t.equivalent(input, inputFromBytes);
 	t.equivalent(Buffer.from(signature, 'base64'), signatureFromBytes);
 
-	t.equal(algo.sign(input, key), signature);
-	t.equal(algo.sign(input.toString('ascii'), key), signature);
+	t.equal(await algo.sign(input, key), signature);
+	t.equal(await algo.sign(input.toString('ascii'), key), signature);
 
-	t.ok(algo.verify(input, signature, key));
-	t.ok(algo.verify(input.toString('ascii'), signature, key));
+	t.ok(await algo.verify(input, signature, key));
+	t.ok(await algo.verify(input.toString('ascii'), signature, key));
 })

@@ -21,11 +21,11 @@ const signature = fs.readFileSync(path.join(__dirname, 'signature.txt'), 'ascii'
 
 const algo = jwa('ES256');
 
-test('A.3', function (t) {
+test('A.3', async function (t) {
 	t.plan(3);
 
 	t.equivalent(input, inputFromBytes);
 
-	t.ok(algo.verify(input, signature, pubKey));
-	t.ok(algo.verify(input.toString('ascii'), signature, pubKey));
+	t.ok(await algo.verify(input, signature, pubKey));
+	t.ok(await algo.verify(input.toString('ascii'), signature, pubKey));
 })
