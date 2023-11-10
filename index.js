@@ -140,17 +140,17 @@ function fromBase64(base64) {
     .replace(/\//g, '_');
 }
 
-function toBase64(base64url) {
-  let base64urlStr = base64url.toString();
+function toBase64(base64urlIn) {
+  let base64url = base64urlIn.toString();
 
-  const padding = 4 - (base64urlStr.length % 4);
+  const padding = 4 - (base64url.length % 4);
   if (padding !== 4) {
     for (let i = 0; i < padding; i += 1) {
-      base64urlStr += '=';
+      base64url += '=';
     }
   }
 
-  return base64urlStr
+  return base64url
     .replace(/-/g, '+')
     .replace(/_/g, '/');
 }
