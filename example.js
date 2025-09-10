@@ -1,7 +1,5 @@
-
 const crypto = require('crypto');
 const { KeyManagementServiceClient } = require('@google-cloud/kms');
-
 
 const projectId = 'apimetrics-qc';
 const locationId = 'us-central1';
@@ -10,7 +8,7 @@ const keyId = 'rsa-private';
 const versionId = '4';
 
 async function main(
-  message = Buffer.from('...')
+  message = Buffer.from('...'),
 ) {
   // Instantiates a client
   const client = new KeyManagementServiceClient();
@@ -21,10 +19,9 @@ async function main(
     locationId,
     keyRingId,
     keyId,
-    versionId
+    versionId,
   );
   console.log(versionName);
-
 
   const [publicKey] = await client.getPublicKey({
     name: versionName,
@@ -57,4 +54,4 @@ async function main(
   return signResponse.signature;
 }
 
-main(Buffer.from('Hello world')).catch(ex => console.error(ex));
+main(Buffer.from('Hello world')).catch((ex) => console.error(ex));
